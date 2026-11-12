@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Control de Gastos</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, Arial, sans-serif; background: #f3f4f6; margin: 0; color: #1f2937; }
+    nav { background: #1f2937; padding: 14px 24px; display: flex; gap: 20px; align-items: center; }
+    nav a { color: #fff; text-decoration: none; font-weight: 500; cursor: pointer; }
+    nav .brand { font-weight: 700; margin-right: auto; color: #fff; }
+    main { max-width: 860px; margin: 24px auto; padding: 0 16px; }
+    .card { background: #fff; border-radius: 10px; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    h1, h2 { margin-top: 0; }
+    form.inline { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+    label { display: flex; flex-direction: column; font-size: 14px; gap: 4px; flex: 1; min-width: 140px; }
+    input { padding: 9px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 15px; }
+    button { padding: 10px 18px; border: 0; border-radius: 6px; background: #2563eb; color: #fff; font-size: 15px; cursor: pointer; }
+    button.danger { background: #dc2626; padding: 6px 12px; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px; border-bottom: 1px solid #e5e7eb; }
+    th { background: #f9fafb; }
+    .num { text-align: right; }
+    .msg { padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; }
+    .msg.ok { background: #d1fae5; color: #065f46; }
+    .msg.error { background: #fee2e2; color: #991b1b; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .stat { background: #eff6ff; border-radius: 8px; padding: 14px; }
+    .stat span { display: block; font-size: 13px; color: #6b7280; }
+    .stat strong { font-size: 22px; }
+    .oculto { display: none; }
+    @media print { nav, form, .no-print { display: none !important; } }
+  </style>
+</head>
+<body>
+
+  <!-- ========== LOGIN ========== -->
+  <section id="vista-login">
+    <main>
+      <div class="card" style="max-width:380px;margin:60px auto;">
+        <h1>Iniciar sesión</h1>
+        <div id="msg-login"></div>
+        <form id="form-login" style="display:flex;flex-direction:column;gap:14px;">
+          <label>Usuario <input type="text" id="usuario" required autofocus></label>
+          <label>Clave <input type="password" id="clave" required></label>
+          <button type="submit">Ingresar</button>
+        </form>
+      </div>
+    </main>
+  </section>
+
+  <!-- ========== APLICACIÓN ========== -->
+  <section id="vista-app" class="oculto">
+    <nav>
+      <span class="brand">💰 Control de Gastos</span>
+      <a id="nav-gastos">Gastos</a>
+      <a id="nav-reporte">Reporte</a>
+      <a id="nav-salir">Salir</a>
+    </nav>
+    <main>
+      <div id="mensaje"></div>
+
+      <!-- Pantalla de gastos -->
+      <div id="pantalla-gastos">
+        <div class="card">
+          <h2>Registrar gasto</h2>
+          <form id="form-gasto" class="inline">
+            <label>Fecha <input type="date" id="fecha" required></label>
+            <label>Descripción <input type="text" id="descripcion" required></label>
+            <label>Monto <input type="number" id="monto" step="0.01" min="0.01" required></label>
+            <button type="submit">Guardar</button>
+          </form>
+        </div>
+        <div class="card">
+          <h2>Mis gastos</h2>
+          <div id="lista-gastos"></div>
+        </div>
+      </div>
+
+      <!-- Pantalla de reporte -->
+      <div id="pantalla-reporte" class="oculto">
+        <div class="card no-print">
+          <h2>Filtrar por fechas</h2>
+          <form id="form-filtro" class="inline">
+            <label>Desde <input type="date" id="desde"></label>
+            <label>Hasta <input type="date" id="hasta"></label>
+            <button type="submit">Generar reporte</button>
+            <button type="button" id="btn-imprimir">Imprimir</button>
+          </form>
+        </div>
+        <h1>Reporte de gastos</h1>
+        <div class="stats" id="estadisticas"></div>
+        <div class="card"><h2>Resumen por mes</h2><div id="resumen-mes"></div></div>
+        <div class="card"><h2>Detalle</h2><div id="detalle"></div></div>
+      </div>
+    </main>
+  </section>
+
+  <script>
+    // ---------------- Configuración ----------------
+    const USUARIO = "admin";
+    const CLAVE = "123";
+    const CLAVE_STORAGE = "gastos";
+    const CLAVE_SESION = "sesionActiva";
+
+    // ---------------- Utilidades ----------------
+    const $ = (id) => document.getElementById(id);
+
+    function escapar(texto) {
+      const div = document.createElement("div");
+      div.textContent = texto;
+      return div.innerHTML;
+    }
+
+    function dinero(n) { return "S/ " + Number(n).toFixed(2); }
+
+    function leerGastos() {
+      return JSON.parse(localStorage.getItem(CLAVE_STORAGE) || "[]");
+    }
+
+    function guardarGastos(lista) {
+      localStorage.setItem(CLAVE_STORAGE, JSON.stringify(lista));
+    }
+
+    function mostrarMensaje(texto, tipo) {
+      $("mensaje").innerHTML = '<div class="msg ' + tipo + '">' + escapar(texto) + "</div>";
+      setTimeout(() => { $("mensaje").innerHTML = ""; }, 3000);
+    }
+
+    // ---------------- Sesión ----------------
+    function mostrarVista() {
+      const activa = sessionStorage.getItem(CLAVE_SESION) === "1";
+      $("vista-login").classList.toggle("oculto", activa);
+      $("vista-app").classList.toggle("oculto", !activa);
+      if (activa) { mostrarPantalla("gastos"); }
+    }
+
+    $("form-login").addEventListener("submit", (e) => {
+      e.preventDefault();
+      if ($("usuario").value === USUARIO && $("clave").value === CLAVE) {
+        sessionStorage.setItem(CLAVE_SESION, "1");
+        $("msg-login").innerHTML = "";
+        $("form-login").reset();
+        mostrarVista();
+      } else {
+        $("msg-login").innerHTML = '<div class="msg error">Usuario o clave incorrectos</div>';
+      }
+    });
+
+    $("nav-salir").addEventListener("click", () => {
+      sessionStorage.removeItem(CLAVE_SESION);
+      mostrarVista();
+    });
+
+    // ---------------- Navegación ----------------
+    function mostrarPantalla(nombre) {
+      $("pantalla-gastos").classList.toggle("oculto", nombre !== "gastos");
+      $("pantalla-reporte").classList.toggle("oculto", nombre !== "reporte");
+      if (nombre === "gastos") { pintarGastos(); }
+      if (nombre === "reporte") { pintarReporte(); }
+    }
+
+    $("nav-gastos").addEventListener("click", () => mostrarPantalla("gastos"));
+    $("nav-reporte").addEventListener("click", () => mostrarPantalla("reporte"));
+
+    // ---------------- Gastos ----------------
+    function pintarGastos() {
+      const lista = leerGastos().sort((a, b) => b.fecha.localeCompare(a.fecha) || b.id - a.id);
+      if (lista.length === 0) {
+        $("lista-gastos").innerHTML = "<p>Aún no has registrado gastos.</p>";
+        return;
+      }
+      let filas = "";
+      lista.forEach((g) => {
+        filas += "<tr><td>" + escapar(g.fecha) + "</td><td>" + escapar(g.descripcion) +
+          '</td><td class="num">' + dinero(g.monto) + '</td><td class="num">' +
+          '<button class="danger" data-id="' + g.id + '">Eliminar</button></td></tr>';
+      });
+      $("lista-gastos").innerHTML =
+        '<table><tr><th>Fecha</th><th>Descripción</th><th class="num">Monto</th><th></th></tr>' +
+        filas + "</table>";
+    }
+
+    $("form-gasto").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const fecha = $("fecha").value;
+      const descripcion = $("descripcion").value.trim();
+      const monto = parseFloat($("monto").value);
+
+      if (!fecha || !descripcion || isNaN(monto) || monto <= 0) {
+        mostrarMensaje("Completa todos los campos con un monto mayor a 0", "error");
+        return;
+      }
+      const lista = leerGastos();
+      lista.push({ id: Date.now(), fecha: fecha, descripcion: descripcion, monto: monto });
+      guardarGastos(lista);
+      $("form-gasto").reset();
+      mostrarMensaje("Gasto registrado", "ok");
+      pintarGastos();
+    });
+
+    $("lista-gastos").addEventListener("click", (e) => {
+      const id = e.target.getAttribute("data-id");
+      if (!id || !confirm("¿Eliminar este gasto?")) { return; }
+      guardarGastos(leerGastos().filter((g) => String(g.id) !== id));
+      mostrarMensaje("Gasto eliminado", "ok");
+      pintarGastos();
+    });
+
+    // ---------------- Reporte ----------------
+    function pintarReporte() {
+      const desde = $("desde").value;
+      const hasta = $("hasta").value;
+      const lista = leerGastos()
+        .filter((g) => (!desde || g.fecha >= desde) && (!hasta || g.fecha <= hasta))
+        .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.id - b.id);
+
+      const total = lista.reduce((suma, g) => suma + g.monto, 0);
+      const promedio = lista.length ? total / lista.length : 0;
+      const mayor = lista.length ? Math.max(...lista.map((g) => g.monto)) : null;
+
+      $("estadisticas").innerHTML =
+        '<div class="stat"><span>Total gastado</span><strong>' + dinero(total) + "</strong></div>" +
+        '<div class="stat"><span>N.º de gastos</span><strong>' + lista.length + "</strong></div>" +
+        '<div class="stat"><span>Promedio</span><strong>' + dinero(promedio) + "</strong></div>" +
+        '<div class="stat"><span>Mayor gasto</span><strong>' + (mayor === null ? "-" : dinero(mayor)) + "</strong></div>";
+
+      // Resumen por mes
+      const meses = {};
+      lista.forEach((g) => {
+        const mes = g.fecha.slice(0, 7);
+        meses[mes] = meses[mes] || { cantidad: 0, total: 0 };
+        meses[mes].cantidad += 1;
+        meses[mes].total += g.monto;
+      });
+      let filasMes = "";
+      Object.keys(meses).sort().forEach((mes) => {
+        filasMes += "<tr><td>" + mes + '</td><td class="num">' + meses[mes].cantidad +
+          '</td><td class="num">' + dinero(meses[mes].total) + "</td></tr>";
+      });
+      $("resumen-mes").innerHTML = filasMes
+        ? '<table><tr><th>Mes</th><th class="num">Cantidad</th><th class="num">Total</th></tr>' + filasMes + "</table>"
+        : "<p>Sin datos</p>";
+
+      // Detalle
+      let filas = "";
+      lista.forEach((g) => {
+        filas += "<tr><td>" + escapar(g.fecha) + "</td><td>" + escapar(g.descripcion) +
+          '</td><td class="num">' + dinero(g.monto) + "</td></tr>";
+      });
+      $("detalle").innerHTML = filas
+        ? '<table><tr><th>Fecha</th><th>Descripción</th><th class="num">Monto</th></tr>' + filas +
+          '<tr><th colspan="2">TOTAL</th><th class="num">' + dinero(total) + "</th></tr></table>"
+        : "<p>Sin datos</p>";
+    }
+
+    $("form-filtro").addEventListener("submit", (e) => { e.preventDefault(); pintarReporte(); });
+    $("btn-imprimir").addEventListener("click", () => window.print());
+
+    // ---------------- Inicio ----------------
+    mostrarVista();
+  </script>
+</body>
+</html>
