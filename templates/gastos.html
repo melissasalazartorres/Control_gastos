@@ -1,0 +1,27 @@
+<!-- ========== APLICACIÓN ========== -->
+  <section id="vista-app" class="oculto">
+    <nav>
+      <span class="brand">💰 Control de Gastos</span>
+      <a id="nav-gastos">Gastos</a>
+      <a id="nav-reporte">Reporte</a>
+      <a id="nav-salir">Salir</a>
+    </nav>
+    <main>
+      <div id="mensaje"></div>
+
+      <!-- Pantalla de gastos -->
+      <div id="pantalla-gastos">
+        <div class="card">
+          <h2>Registrar gasto</h2>
+          <form id="form-gasto" class="inline">
+            <label>Fecha <input type="date" id="fecha" required></label>
+            <label>Descripción <input type="text" id="descripcion" required></label>
+            <label>Monto <input type="number" id="monto" step="0.01" min="0.01" required></label>
+            <button type="submit">Guardar</button>
+          </form>
+        </div>
+        <div class="card">
+          <h2>Mis gastos</h2>
+          <div id="lista-gastos"></div>
+        </div>
+      </div>
