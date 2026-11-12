@@ -1,0 +1,19 @@
+
+      <!-- Pantalla de reporte -->
+      <div id="pantalla-reporte" class="oculto">
+        <div class="card no-print">
+          <h2>Filtrar por fechas</h2>
+          <form id="form-filtro" class="inline">
+            <label>Desde <input type="date" id="desde"></label>
+            <label>Hasta <input type="date" id="hasta"></label>
+            <button type="submit">Generar reporte</button>
+            <button type="button" id="btn-imprimir">Imprimir</button>
+          </form>
+        </div>
+        <h1>Reporte de gastos</h1>
+        <div class="stats" id="estadisticas"></div>
+        <div class="card"><h2>Resumen por mes</h2><div id="resumen-mes"></div></div>
+        <div class="card"><h2>Detalle</h2><div id="detalle"></div></div>
+      </div>
+    </main>
+  </section>
